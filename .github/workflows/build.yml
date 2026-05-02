@@ -1,4 +1,4 @@
-name: Hybrid Final Build
+name: Final Build with Config
 
 on:
   workflow_dispatch:
@@ -50,6 +50,11 @@ jobs:
           cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
           cd android-kernel/common
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
+
+      - name: Configure kernel (GKI defconfig)
+        run: |
+          cd android-kernel/common
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
 
       - name: Build only the driver module
         run: |
