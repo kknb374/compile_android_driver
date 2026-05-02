@@ -11,19 +11,32 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Clone kernel source (shallow)
+      - name: Install repo tool
         run: |
-          git clone --depth=1 --branch android15-6.6 https://github.com/kknb374?tab=repositories
+          sudo curl -L https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
+          sudo chmod a+x /usr/local/bin/repo
+
+      - name: Initialize Android Common Kernel source
+        run: |
+          mkdir -p android-kernel && cd android-kernel
+          # 使用 AOSP 官方 Android 15 对应的通用内核清单
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
+          repo sync -j$(nproc) -c --no-tags --optimized-fetch --force-sync
 
       - name: Prepare kernel build environment
         run: |
-          cd kernel_source
-          make ARCH=arm64 你的设备_defconfig
+          cd android-kernel
+          # 从你的 GitHub 仓库根目录复制已上传的设备内核配置
+          cp ../device_defconfig arch/arm64/configs/my_device_defconfig
+          # 应用这个配置
+          make ARCH=arm64 my_device_defconfig
+          # 准备内核模块编译所需的头文件
           make ARCH=arm64 modules_prepare
 
       - name: Build dream.ko
         run: |
-          make -C kernel_source M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          # 你的驱动源码在 code/ 文件夹中
+          make -C android-kernel M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
