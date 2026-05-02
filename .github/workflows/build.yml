@@ -1,18 +1,18 @@
-name: Quick Build dream.ko
+name: Build dream.ko (Safe)
 
 on:
   workflow_dispatch:
     inputs:
       android_version:
-        description: 'Android Version (15)'
+        description: 'Android Version'
         required: true
         default: '15'
       kernel_version:
-        description: 'Kernel Version (6.6)'
+        description: 'Kernel Version'
         required: true
         default: '6.6'
       driver_name:
-        description: 'Driver Name (dream.ko)'
+        description: 'Driver Name'
         required: true
         default: 'dream.ko'
 
@@ -20,10 +20,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup toolchain
+      - name: Setup environment
         run: |
           sudo apt-get update
           sudo apt-get install -y git build-essential flex bison libssl-dev bc gcc-aarch64-linux-gnu
@@ -40,5 +40,5 @@ jobs:
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
         with:
-          name: dream-driver
+          name: dream.ko
           path: code/dream.ko
