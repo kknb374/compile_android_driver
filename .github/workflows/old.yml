@@ -19,7 +19,8 @@ jobs:
       - name: Initialize Android Common Kernel source
         run: |
           mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
+          # 使用 mainline 分支获得完整内核源码
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android-mainline
           repo sync -j$(nproc) -c --no-tags --optimized-fetch --force-sync
 
       - name: Prepare kernel build environment
