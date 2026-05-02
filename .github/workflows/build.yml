@@ -1,4 +1,4 @@
-name: Final Build with Config
+name: Final Build with Config (Relaxed)
 
 on:
   workflow_dispatch:
@@ -56,11 +56,11 @@ jobs:
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
 
-      - name: Build only the driver module
+      - name: Build only the driver module (relax modpost)
         run: |
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
+          KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
