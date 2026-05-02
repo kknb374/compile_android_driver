@@ -56,7 +56,6 @@ jobs:
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
           # ★ 关键：设置 LOCALVERSION 为你手机内核的后缀
-          # 请确保下面的字符串与你的 uname -r 最后部分完全一致
           ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13771415-4k"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
