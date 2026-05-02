@@ -4,7 +4,10 @@ gki:
   android_version: 15
   kernel_version: "6.6"
   target_arch: "aarch64"
-
+  source:
+    type: repo
+    repo_url: https://android.googlesource.com/kernel/manifest
+    branch: common-android15-6.6
   driver:
     in_tree: false
     external_src_dir: "code"
