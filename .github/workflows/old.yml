@@ -13,7 +13,7 @@ jobs:
 
       - name: Clone kernel source (shallow)
         run: |
-          git clone --depth=1 --branch 你的内核分支名 你的内核仓库地址 kernel_source
+          git clone --depth=1 --branch android15-6.6 你的内核仓库地址 kernel_source
 
       - name: Prepare kernel build environment
         run: |
