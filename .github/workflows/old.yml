@@ -1,4 +1,4 @@
-name: Build dream.ko (Module Only)
+name: Build dream.ko for Xiaomi 13 (AOSP 5.15)
 
 on:
   workflow_dispatch:
@@ -11,27 +11,22 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Install repo tool
+      - name: Clone AOSP kernel source (5.15 Android 13)
         run: |
-          sudo curl -L https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
-          sudo chmod a+x /usr/local/bin/repo
-
-      - name: Initialize Android Common Kernel source
-        run: |
-          mkdir -p android-kernel && cd android-kernel
-          # 使用 mainline 分支获得完整内核源码
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android-mainline
-          repo sync -j$(nproc) -c --no-tags --optimized-fetch --force-sync
+          git clone --depth=1 --branch android13-5.15-lts \
+            https://android.googlesource.com/kernel/common \
+            kernel_source
 
       - name: Prepare kernel build environment
         run: |
-          cd android-kernel
+          cd kernel_source
           cp ../device_defconfig .config
+          make ARCH=arm64 olddefconfig
           make ARCH=arm64 modules_prepare
 
       - name: Build dream.ko
         run: |
-          make -C android-kernel M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          make -C kernel_source M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
