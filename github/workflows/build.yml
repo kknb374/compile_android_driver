@@ -14,6 +14,7 @@ on:
       driver_name:
         description: 'Driver Name (e.g., dream.ko)'
         required: true
+        default: 'dream.ko'
       target_arch:
         description: 'Target Architecture'
         required: true
@@ -23,7 +24,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup environment
