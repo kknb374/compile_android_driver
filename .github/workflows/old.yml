@@ -1,4 +1,4 @@
-name: Build dream.ko for Xiaomi 13 (AOSP 5.15)
+name: Build dream.ko for Xiaomi 13 (Quick Fix)
 
 on:
   workflow_dispatch:
@@ -14,21 +14,16 @@ jobs:
       - name: Clone AOSP kernel source (5.15 Android 13)
         run: |
           git clone --depth=1 --branch android13-5.15-lts \
-            https://android.googlesource.com/kernel/common \
+            https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/kernel/common.git \
             kernel_source
 
       - name: Prepare kernel build environment
         run: |
           cd kernel_source
+          mkdir -p common/android   # ← 修复：创建缺失目录
           cp ../device_defconfig .config
           make ARCH=arm64 olddefconfig
-          # 禁用 ABI 符号检查（GKI 白名单校验）
-          sed -i 's/CONFIG_MODULE_SIG_ALL=y/# CONFIG_MODULE_SIG_ALL is not set/' .config
-          sed -i 's/CONFIG_KASAN=y/# CONFIG_KASAN is not set/' .config
-          # 允许缺失的白名单文件
-          touch common/android/abi_symbol_list
-          # 准备模块编译环境
-          make ARCH=arm64 modules_prepare
+          make ARCH=arm64 modules_prepare -j$(nproc)
 
       - name: Build dream.ko
         run: |
