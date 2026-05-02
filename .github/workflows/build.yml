@@ -1,16 +1,64 @@
-name: Final
+name: Hybrid Final Build
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      android_version:
+        description: 'Android Version'
+        required: true
+        default: '15'
+      kernel_version:
+        description: 'Kernel Version'
+        required: true
+        default: '6.6'
+      driver_name:
+        description: 'Driver Name'
+        required: true
+        default: 'dream.ko'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y git build-essential flex bison libssl-dev bc gcc-aarch64-linux-gnu
-      - run: git clone --depth=1 --branch common-android15-6.6 https://android.googlesource.com/kernel/common.git kernel
-      - run: cd code && make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -C ../kernel M=$PWD modules
-      - uses: actions/upload-artifact@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare kernel driver directory
+        run: |
+          mkdir -p kerneldriver
+          cp -r code/* kerneldriver/
+
+      - name: Install repo tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
+
+      - name: Setup Android kernel source
+        run: |
+          export PATH=~/bin:$PATH
+          mkdir -p android-kernel && cd android-kernel
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android${{ github.event.inputs.android_version }}-${{ github.event.inputs.kernel_version }} --depth=1
+          repo sync -c -j$(nproc)
+
+      - name: Copy kernel driver into tree
+        run: |
+          mkdir -p android-kernel/common/drivers/kerneldriver
+          cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
+          cd android-kernel/common
+          echo 'obj-y += kerneldriver/' >> drivers/Makefile
+
+      - name: Build only the driver module
+        run: |
+          cd android-kernel/common
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
+
+      - name: Upload dream.ko
+        uses: actions/upload-artifact@v4
         with:
           name: dream.ko
-          path: code/dream.ko
+          path: android-kernel/common/drivers/kerneldriver/dream.ko
