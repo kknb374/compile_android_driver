@@ -62,16 +62,6 @@ static phys_addr_t translate_linear_address_locked(struct mm_struct *mm, uintptr
     return page_addr + page_offset;
 }
 
-/* 带锁版本 */
-static phys_addr_t translate_linear_address(struct mm_struct *mm, uintptr_t va)
-{
-    phys_addr_t pa;
-    mmap_read_lock(mm);
-    pa = translate_linear_address_locked(mm, va);
-    mmap_read_unlock(mm);
-    return pa;
-}
-
 /* 物理内存读 */
 static bool read_physical_address(uintptr_t pa, void *buffer, size_t size)
 {
