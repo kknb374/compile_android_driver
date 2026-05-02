@@ -21,6 +21,7 @@
 #include <asm/cacheflush.h>
 #include <linux/highmem.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_notifier.h>  /* 为缺失符号提供完整类型 */
 
 /* 自定义缓存刷新（避免与内核已有函数冲突） */
 static inline void dream_flush_dcache(void *vaddr, size_t size)
@@ -124,4 +125,12 @@ static bool write_process_memory(pid_t pid, uintptr_t addr, const void *buffer, 
     return result;
 }
 
+/*
+ * 你的内核缺少这个符号，在此提供定义并导出
+ * 函数签名必须与内核头文件完全一致
+ */
+extern void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+                                                           struct mm_struct *mm,
+                                                           unsigned long start,
+                                                           unsigned long end);
 #endif /* _MEMORY_H_ */
