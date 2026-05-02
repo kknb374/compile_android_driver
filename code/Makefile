@@ -1,7 +1,8 @@
-obj-m += dream.o
-
+obj-m += my_driver.o
+# 注意：下面的 KDIR 由 GitHub Action 自动提供，不要修改
+# KDIR := ...
 all:
-	make -C $(KERNEL_DIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
-	make -C $(KERNEL_DIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
