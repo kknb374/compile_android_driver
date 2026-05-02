@@ -1,72 +1,52 @@
-name: Build dream.ko (Matched vermagic)
+name: Build exact for your device
 
 on:
   workflow_dispatch:
-    inputs:
-      android_version:
-        description: 'Android Version'
-        required: true
-        default: '15'
-      kernel_version:
-        description: 'Kernel Version'
-        required: true
-        default: '6.6'
-      driver_name:
-        description: 'Driver Name'
-        required: true
-        default: 'dream.ko'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Prepare kernel driver directory
+      - name: Prepare driver and tools
         run: |
           mkdir -p kerneldriver
           cp -r code/* kerneldriver/
-
-      - name: Install repo tool
-        run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
-          export PATH=~/bin:$PATH
 
-      - name: Setup Android kernel source
+      - name: Get exact kernel source
         run: |
           export PATH=~/bin:$PATH
           mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android${{ github.event.inputs.android_version }}-${{ github.event.inputs.kernel_version }} --depth=1
+          # 指定与你内核完全相同的代号
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6.89 --depth=1
           repo sync -c -j$(nproc)
 
-      - name: Copy kernel driver into tree
+      - name: Copy driver in
         run: |
           mkdir -p android-kernel/common/drivers/kerneldriver
           cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
           cd android-kernel/common
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
 
-      - name: Configure kernel and set vermagic to match device
+      - name: Build module with exact vermagic
         run: |
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          # ★ 关键：设置 LOCALVERSION 为你手机内核的后缀
-          ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13771415-4k"
+          # 写入你设备完整后缀
+          ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
-
-      - name: Build only the driver module (relax modpost)
-        run: |
-          cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
           KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
+          mkdir -p /tmp/artifact
+          cp drivers/kerneldriver/dream.ko /tmp/artifact/
 
-      - name: Upload matched dream.ko
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: dream.ko
-          path: android-kernel/common/drivers/kerneldriver/dream.ko
+          name: dream-fixed
+          path: /tmp/artifact/
