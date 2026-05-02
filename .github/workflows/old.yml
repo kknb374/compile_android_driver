@@ -19,23 +19,17 @@ jobs:
       - name: Initialize Android Common Kernel source
         run: |
           mkdir -p android-kernel && cd android-kernel
-          # 使用 AOSP 官方 Android 15 对应的通用内核清单
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6
           repo sync -j$(nproc) -c --no-tags --optimized-fetch --force-sync
 
       - name: Prepare kernel build environment
         run: |
           cd android-kernel
-          # 从你的 GitHub 仓库根目录复制已上传的设备内核配置
-          cp ../device_defconfig arch/arm64/configs/my_device_defconfig
-          # 应用这个配置
-          make ARCH=arm64 my_device_defconfig
-          # 准备内核模块编译所需的头文件
+          cp ../device_defconfig .config
           make ARCH=arm64 modules_prepare
 
       - name: Build dream.ko
         run: |
-          # 你的驱动源码在 code/ 文件夹中
           make -C android-kernel M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Upload dream.ko
