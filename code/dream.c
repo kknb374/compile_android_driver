@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "hide.h"
 #include "so_hide.h"
+#include <linux/module.h>  /* 确保 EXPORT_SYMBOL 可用 */
 #include "trace.h"
 #include "hook.h"
 #include "kmmap.h"
