@@ -1,0 +1,97 @@
+name: Android Kernel Driver Builder (Fixed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      android_version:
+        description: 'Android Version'
+        required: true
+        default: '15'
+      kernel_version:
+        description: 'Kernel Version'
+        required: true
+        default: '6.6'
+      driver_name:
+        description: 'Driver Name (e.g., dream.ko)'
+        required: true
+        default: 'dream.ko'
+      target_arch:
+        description: 'Target Architecture'
+        required: true
+        default: 'aarch64'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare kernel driver directory
+        run: |
+          mkdir -p kerneldriver
+          if [ -d "code" ] && [ "$(ls -A code)" ]; then
+            cp -r code/* kerneldriver/
+            echo "Driver files copied to kerneldriver/"
+          else
+            echo "Error: 'code' directory is empty or does not exist. Please add your driver source files."
+            exit 1
+          fi
+
+      - name: Install repo tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
+
+      - name: Setup Android kernel source
+        run: |
+          export PATH=~/bin:$PATH
+          mkdir -p android-kernel && cd android-kernel
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android${{ github.event.inputs.android_version }}-${{ github.event.inputs.kernel_version }} --depth=1
+          repo sync -c -j$(nproc)
+
+      - name: Copy kernel driver
+        run: |
+          mkdir -p android-kernel/common/drivers/kerneldriver
+          if [ -d kerneldriver ] && [ "$(ls -A kerneldriver)" ]; then
+            cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
+            echo "Driver copied to kernel tree."
+          else
+            echo "Error: kerneldriver directory is empty."
+            exit 1
+          fi
+
+      - name: Modify Makefile and Kconfig
+        run: |
+          cd android-kernel/common
+          echo 'obj-y += kerneldriver/' >> drivers/Makefile
+          echo 'source "drivers/kerneldriver/Kconfig"' >> drivers/Kconfig
+          echo 'config DREAM_DRIVER' > drivers/kerneldriver/Kconfig
+          echo '    tristate "Dream Driver"' >> drivers/kerneldriver/Kconfig
+          echo '    depends on ARM64' >> drivers/kerneldriver/Kconfig
+          echo '    default m' >> drivers/kerneldriver/Kconfig
+          echo '    help' >> drivers/kerneldriver/Kconfig
+          echo '      Dream kernel driver.' >> drivers/kerneldriver/Kconfig
+
+      - name: Add module to GKI modules list
+        run: |
+          cd android-kernel/common
+          echo 'kerneldriver/${{ github.event.inputs.driver_name }}' >> android/gki_modules
+
+      - name: Build kernel with driver
+        run: |
+          cd android-kernel
+          BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+        env:
+          ARCH: arm64
+          CROSS_COMPILE: aarch64-linux-gnu-
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: driver-artifact
+          path: android-kernel/out/*/dist/*.ko
