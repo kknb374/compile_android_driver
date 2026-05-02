@@ -1,4 +1,4 @@
-name: Build exact for your device
+name: Final Build for your device
 
 on:
   workflow_dispatch:
@@ -19,12 +19,12 @@ jobs:
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
 
-      - name: Get exact kernel source
+      - name: Get kernel source
         run: |
           export PATH=~/bin:$PATH
           mkdir -p android-kernel && cd android-kernel
-          # 指定与你内核完全相同的代号
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6.89 --depth=1
+          # 使用已验证可用的 common-android15-6.6 分支
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
           repo sync -c -j$(nproc)
 
       - name: Copy driver in
@@ -34,13 +34,19 @@ jobs:
           cd android-kernel/common
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
 
-      - name: Build module with exact vermagic
+      - name: Force version to 6.6.89 and set suffix
         run: |
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          # 写入你设备完整后缀
+          # 强制修改内核 Makefile 中的版本号，使其变为 6.6.89
+          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
+          # 设置设备后缀，与你平板完全相同
           ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+
+      - name: Build module
+        run: |
+          cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
           KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
           mkdir -p /tmp/artifact
@@ -48,5 +54,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dream-fixed
+          name: dream-final
           path: /tmp/artifact/
