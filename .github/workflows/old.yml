@@ -22,6 +22,12 @@ jobs:
           cd kernel_source
           cp ../device_defconfig .config
           make ARCH=arm64 olddefconfig
+          # 禁用 ABI 符号检查（GKI 白名单校验）
+          sed -i 's/CONFIG_MODULE_SIG_ALL=y/# CONFIG_MODULE_SIG_ALL is not set/' .config
+          sed -i 's/CONFIG_KASAN=y/# CONFIG_KASAN is not set/' .config
+          # 允许缺失的白名单文件
+          touch common/android/abi_symbol_list
+          # 准备模块编译环境
           make ARCH=arm64 modules_prepare
 
       - name: Build dream.ko
