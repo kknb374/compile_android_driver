@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
