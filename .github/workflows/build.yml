@@ -10,10 +10,10 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Install build tools (Clang)
+      - name: Install build tools (Clang + cross binutils)
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang lld llvm flex bison bc curl xz-utils
+          sudo apt-get install -y clang lld llvm flex bison bc curl xz-utils binutils-aarch64-linux-gnu
 
       - name: Download Linux 6.6.89 kernel source
         run: |
