@@ -1,4 +1,4 @@
-// dream.c (安全写入版，不会黑屏)
+// dream.c —— 最终修复版，无冲突，无黑屏，支持内核写入
 #include "comm.h"
 #include "process.h"
 #include "memory.h"
@@ -8,10 +8,12 @@
 #include "hook.h"
 #include "kmmap.h"
 #include <linux/kprobes.h>
+#include <linux/atomic.h>
 
 MODULE_LICENSE("GPL");
 
-int target_hide_pid = 0;
+// 修复冲突：统一为 atomic_t，与 hook.h 声明一致
+atomic_t target_hide_pid = ATOMIC_INIT(0);
 
 static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 {
@@ -59,7 +61,7 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
     case OP_CMD_HIDE: {
         HIDE_PID hp;
         if (copy_from_user(&hp, (void __user *)arg, sizeof(hp))) { ret_val = -1; break; }
-        target_hide_pid = hp.pid;
+        atomic_set(&target_hide_pid, hp.pid);   // 修复：原子赋值
         ret_val = 0;
         break;
     }
@@ -84,7 +86,7 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
         break;
     }
 
-    // ==================== 稳定写入命令（调用安全函数） ====================
+    // ---------- 内核无痕写入（安全稳定） ----------
     case OP_CMD_WRITE: {
         COPY_MEMORY cm;
         void *kbuf = NULL;
@@ -202,7 +204,7 @@ static int __init my_init(void)
         printk(KERN_ERR "[DREAM] register sc_block\n");
     }
 
-    printk(KERN_INFO "[DREAM] Loaded (Kprobe + ShadowPage)\n");
+    printk(KERN_INFO "[DREAM] Loaded (Kprobe + ShadowPage + SafeWrite)\n");
     return 0;
 }
 
