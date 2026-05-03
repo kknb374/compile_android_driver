@@ -1,4 +1,4 @@
-name: Build Perfect dream.ko with Write
+name: Final Build dream.ko with Write
 
 on:
   workflow_dispatch:
@@ -16,17 +16,18 @@ jobs:
           tar -xf linux-6.6.89.tar.xz
           mv linux-6.6.89 kernel_source
 
-      - name: Configure kernel with device defconfig and correct version
+      - name: Configure kernel (default config + exact version)
         run: |
           cd kernel_source
-          cp ../device_defconfig .config
-          # 注入完全相同的 LOCALVERSION
+          # 使用默认配置，不需要任何 device_defconfig
+          make ARCH=arm64 defconfig
+          # 关闭自动本地版本号（避免自动添加 -dirty）
           scripts/config --disable CONFIG_LOCALVERSION_AUTO
+          # 注入与你平板内核完全一致的版本后缀
           scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
           echo "0" > .scmversion
           make ARCH=arm64 olddefconfig
           make ARCH=arm64 modules_prepare -j$(nproc)
-        continue-on-error: false
 
       - name: Build dream.ko
         run: |
