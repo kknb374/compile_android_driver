@@ -10,7 +10,7 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Install build tools (Clang + cross binutils)
+      - name: Install all necessary build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y clang lld llvm flex bison bc curl xz-utils binutils-aarch64-linux-gnu
@@ -21,19 +21,25 @@ jobs:
           tar -xf linux-6.6.89.tar.xz
           mv linux-6.6.89 kernel_source
 
-      - name: Configure kernel (default config + exact version)
+      - name: Configure kernel and prepare modules
         run: |
           cd kernel_source
-          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- defconfig
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CC=clang
+          make defconfig
           scripts/config --disable CONFIG_LOCALVERSION_AUTO
           scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
           echo "0" > .scmversion
-          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
-          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
+          make olddefconfig
+          make modules_prepare -j$(nproc)
 
       - name: Build dream.ko
         run: |
-          make -C kernel_source M=$(pwd)/code ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- modules
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CC=clang
+          make -C kernel_source M=$(pwd)/code modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
