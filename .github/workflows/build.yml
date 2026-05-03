@@ -10,6 +10,11 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
+      - name: Install build tools (Clang)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld llvm flex bison bc curl xz-utils
+
       - name: Download Linux 6.6.89 kernel source
         run: |
           wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.89.tar.xz
@@ -19,19 +24,16 @@ jobs:
       - name: Configure kernel (default config + exact version)
         run: |
           cd kernel_source
-          # 使用默认配置，不需要任何 device_defconfig
-          make ARCH=arm64 defconfig
-          # 关闭自动本地版本号（避免自动添加 -dirty）
+          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- defconfig
           scripts/config --disable CONFIG_LOCALVERSION_AUTO
-          # 注入与你平板内核完全一致的版本后缀
           scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
           echo "0" > .scmversion
-          make ARCH=arm64 olddefconfig
-          make ARCH=arm64 modules_prepare -j$(nproc)
+          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          make ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
 
       - name: Build dream.ko
         run: |
-          make -C kernel_source M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          make -C kernel_source M=$(pwd)/code ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
