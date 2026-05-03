@@ -10,10 +10,10 @@ jobs:
       - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Install all necessary build tools
+      - name: Install all necessary build tools (GCC cross-compiler)
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang lld llvm flex bison bc curl xz-utils binutils-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu flex bison bc curl xz-utils
 
       - name: Download Linux 6.6.89 kernel source
         run: |
@@ -26,7 +26,6 @@ jobs:
           cd kernel_source
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          export CC=clang
           make defconfig
           scripts/config --disable CONFIG_LOCALVERSION_AUTO
           scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
@@ -36,10 +35,10 @@ jobs:
 
       - name: Build dream.ko
         run: |
+          cd kernel_source
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          export CC=clang
-          make -C kernel_source M=$(pwd)/code modules
+          make M=$(pwd)/../code modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
