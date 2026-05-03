@@ -13,7 +13,7 @@
 #define OP_CMD_HD     0x65
 #define OP_CMD_UHD    0x66
 #define OP_CMD_HS     0x67
-
+#define OP_CMD_WRITE  0x68
 #define OP_CMD_HOOK_ATTACH   0x70
 #define OP_CMD_HOOK_DETACH   0x71
 #define OP_CMD_HOOK_SET_ROT  0x72
