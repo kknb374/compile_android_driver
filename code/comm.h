@@ -3,24 +3,24 @@
 
 #include <linux/types.h>
 
-/* ---------- 操作码 ---------- */
-#define OP_CMD_CHECK        0x59
-#define OP_CMD_PID          0x60
-#define OP_CMD_HIDE         0x61
-#define OP_CMD_BASE         0x62
-#define OP_CMD_READ         0x63
-#define OP_CMD_UNHIDE       0x64
-#define OP_CMD_HD           0x65
-#define OP_CMD_UHD          0x66
-#define OP_CMD_HS           0x67
-#define OP_CMD_WRITE        0x68	/* 唯一一次定义 */
-#define OP_CMD_HOOK_ATTACH  0x70
-#define OP_CMD_HOOK_DETACH  0x71
-#define OP_CMD_HOOK_SET_ROT 0x72
-#define OP_CMD_HOOK_STATUS  0x73
-#define OP_CMD_SC           0x74
+#define OP_CMD_WRITE  0x68
+#define OP_CMD_CHECK  0x59
+#define OP_CMD_PID    0x60
+#define OP_CMD_HIDE   0x61
+#define OP_CMD_BASE   0x62
+#define OP_CMD_READ   0x63
+#define OP_CMD_UNHIDE 0x64
+#define OP_CMD_HD     0x65
+#define OP_CMD_UHD    0x66
+#define OP_CMD_HS     0x67
 
-/* ---------- 用户态结构体 ---------- */
+#define OP_CMD_HOOK_ATTACH   0x70
+#define OP_CMD_HOOK_DETACH   0x71
+#define OP_CMD_HOOK_SET_ROT  0x72
+#define OP_CMD_HOOK_STATUS   0x73
+
+#define OP_CMD_SC   0x74
+
 typedef struct _COPY_MEMORY {
     pid_t pid;
     uintptr_t addr;
@@ -51,7 +51,7 @@ typedef struct _SC_PID {
     pid_t pid;
 } SC_PID, *PSC_PID;
 
-#define STACK_ROT_MAX 12
+#define STACK_ROT_MAX   12
 
 typedef struct _HOOK_ATTACH {
     pid_t           pid;
@@ -77,5 +77,6 @@ typedef struct _HOOK_STATUS {
     __u32   stack_offset;
     __u64   hit_count;
 } HOOK_STATUS, *PHOOK_STATUS;
+
 
 #endif /* _COMM_H_ */
