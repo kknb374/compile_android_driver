@@ -4,18 +4,31 @@
 #include "memory.h"
 #include "hide.h"
 #include "so_hide.h"
-#include <linux/module.h>  /* 确保 EXPORT_SYMBOL 可用 */
 #include "trace.h"
 #include "hook.h"
 #include "kmmap.h"
-#include "utils.h"              // 新增：公共工具（get_user_regs 等）
+#include "utils.h"
 #include <linux/kprobes.h>
 #include <linux/atomic.h>
+#include <linux/mmu_notifier.h>   /* 提供缺失符号的类型声明 */
 
 MODULE_LICENSE("GPL");
 
 /* 隐藏 PID 改用原子变量，避免并发问题 */
 atomic_t target_hide_pid = ATOMIC_INIT(0);
+
+/*
+ * 补充设备内核缺失的符号
+ * 函数签名必须与内核头文件完全一致
+ */
+void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+                                                    struct mm_struct *mm,
+                                                    unsigned long start,
+                                                    unsigned long end)
+{
+    /* 空实现，仅用于通过链接 */
+}
+EXPORT_SYMBOL(__mmu_notifier_arch_invalidate_secondary_tlbs);
 
 /* ---- ioctl 劫持入口 ---- */
 static int handler_pre(struct kprobe *p, struct pt_regs *regs)
