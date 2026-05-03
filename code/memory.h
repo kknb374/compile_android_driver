@@ -21,7 +21,7 @@
 #include <asm/cacheflush.h>
 #include <linux/highmem.h>
 #include <linux/sched/mm.h>
-#include <linux/mmu_notifier.h>  /* 为缺失符号提供完整类型 */
+#include <linux/mmu_notifier.h>   /* 提供缺失符号的类型声明 */
 
 /* 自定义缓存刷新（避免与内核已有函数冲突） */
 static inline void dream_flush_dcache(void *vaddr, size_t size)
@@ -39,7 +39,7 @@ static inline void dream_flush_dcache(void *vaddr, size_t size)
     asm volatile("isb" ::: "memory");
 }
 
-/* 页表遍历（需要调用者持有 mmap_lock） */
+/* 页表遍历（调用者必须持有 mmap_lock） */
 static phys_addr_t translate_linear_address_locked(struct mm_struct *mm, uintptr_t va)
 {
     pgd_t *pgd; p4d_t *p4d; pud_t *pud; pmd_t *pmd; pte_t *pte;
@@ -125,12 +125,4 @@ static bool write_process_memory(pid_t pid, uintptr_t addr, const void *buffer, 
     return result;
 }
 
-/*
- * 你的内核缺少这个符号，在此提供定义并导出
- * 函数签名必须与内核头文件完全一致
- */
-extern void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
-                                                           struct mm_struct *mm,
-                                                           unsigned long start,
-                                                           unsigned long end);
 #endif /* _MEMORY_H_ */
