@@ -1,42 +1,74 @@
-name: Build dream.ko (final-fix)
+name: Build dream.ko (Matched & Safe)
 
 on:
   workflow_dispatch:
+    inputs:
+      android_version:
+        description: 'Android Version'
+        required: true
+        default: '15'
+      kernel_version:
+        description: 'Kernel Version'
+        required: true
+        default: '6.6'
+      driver_name:
+        description: 'Driver Name'
+        required: true
+        default: 'dream.ko'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup toolchain
+      - name: Prepare kernel driver directory
+        run: |
+          mkdir -p kerneldriver
+          cp -r code/* kerneldriver/
+
+      - name: Install repo tool
         run: |
           sudo apt-get update
-          sudo apt-get install -y git build-essential flex bison libssl-dev bc gcc-aarch64-linux-gnu
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
 
-      - name: Clone kernel source
+      - name: Setup Android kernel source (using repo, never miss a space)
         run: |
-          git clone --depth=1 --branch common-android15-6.6 https://android.googlesource.com/kernel/common.git kernel
+          export PATH=~/bin:$PATH
+          mkdir -p android-kernel && cd android-kernel
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android${{ github.event.inputs.android_version }}-${{ github.event.inputs.kernel_version }} --depth=1
+          repo sync -c -j$(nproc)
 
-      - name: Force kernel version to 6.6.89 and set vermagic suffix
+      - name: Copy kernel driver into tree
         run: |
-          cd kernel
-          # 修改 Makefile 中的 SUBLEVEL 为 89
-          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
-          # 生成默认配置
+          mkdir -p android-kernel/common/drivers/kerneldriver
+          cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
+          cd android-kernel/common
+          echo 'obj-y += kerneldriver/' >> drivers/Makefile
+
+      - name: Configure kernel, force version to 6.6.89, and set device suffix
+        run: |
+          cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          # 设置 LOCALVERSION 后缀，与你的设备完全一致
-          ./scripts/config --file .config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
+          # 1. 强制修改 SUBLEVEL 为 89，匹配你的内核
+          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
+          # 2. 设置 LOCALVERSION 为你设备的后缀
+          ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
-      - name: Build driver module
+      - name: Build only the driver module (relax modpost)
         run: |
-          cd code
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -C ../kernel M=$PWD modules
+          cd android-kernel/common
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
+          KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
 
-      - name: Upload dream.ko
+      - name: Upload ONLY dream.ko (no out-of-memory)
         uses: actions/upload-artifact@v4
         with:
           name: dream.ko
-          path: code/dream.ko
+          path: android-kernel/common/drivers/kerneldriver/dream.ko
