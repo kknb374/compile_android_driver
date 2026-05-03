@@ -1,4 +1,4 @@
-name: Final Build for your device
+name: Build dream.ko (final-fix)
 
 on:
   workflow_dispatch:
@@ -7,52 +7,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Prepare driver and tools
+      - name: Setup toolchain
         run: |
-          mkdir -p kerneldriver
-          cp -r code/* kerneldriver/
           sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
-          mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
+          sudo apt-get install -y git build-essential flex bison libssl-dev bc gcc-aarch64-linux-gnu
 
-      - name: Get kernel source
+      - name: Clone kernel source
         run: |
-          export PATH=~/bin:$PATH
-          mkdir -p android-kernel && cd android-kernel
-          # 使用已验证可用的 common-android15-6.6 分支
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android15-6.6 --depth=1
-          repo sync -c -j$(nproc)
+          git clone --depth=1 --branch common-android15-6.6 https://android.googlesource.com/kernel/common.git kernel
 
-      - name: Copy driver in
+      - name: Force kernel version to 6.6.89 and set vermagic suffix
         run: |
-          mkdir -p android-kernel/common/drivers/kerneldriver
-          cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
-          cd android-kernel/common
-          echo 'obj-y += kerneldriver/' >> drivers/Makefile
-
-      - name: Force version to 6.6.89 and set suffix
-        run: |
-          cd android-kernel/common
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          # 强制修改内核 Makefile 中的版本号，使其变为 6.6.89
+          cd kernel
+          # 修改 Makefile 中的 SUBLEVEL 为 89
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
-          # 设置设备后缀，与你平板完全相同
-          ./scripts/config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
+          # 生成默认配置
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
+          # 设置 LOCALVERSION 后缀，与你的设备完全一致
+          ./scripts/config --file .config --set-str CONFIG_LOCALVERSION "-8-g5a0ffb447c1d-ab13774115-4k"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
-      - name: Build module
+      - name: Build driver module
         run: |
-          cd android-kernel/common
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
-          KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
-          mkdir -p /tmp/artifact
-          cp drivers/kerneldriver/dream.ko /tmp/artifact/
+          cd code
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -C ../kernel M=$PWD modules
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload dream.ko
+        uses: actions/upload-artifact@v4
         with:
-          name: dream-final
-          path: /tmp/artifact/
+          name: dream.ko
+          path: code/dream.ko
