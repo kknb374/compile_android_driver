@@ -1,77 +1,39 @@
-name: Build dream.ko (Final Fixed)
+name: Build Perfect dream.ko with Write
 
 on:
   workflow_dispatch:
-    inputs:
-      android_version:
-        description: 'Android Version'
-        required: true
-        default: '15'
-      kernel_version:
-        description: 'Kernel Version'
-        required: true
-        default: '6.6'
-      driver_name:
-        description: 'Driver Name'
-        required: true
-        default: 'dream.ko'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout driver code
         uses: actions/checkout@v4
 
-      - name: Prepare kernel driver directory
+      - name: Download Linux 6.6.89 kernel source
         run: |
-          mkdir -p kerneldriver
-          cp -r code/* kerneldriver/
+          wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.89.tar.xz
+          tar -xf linux-6.6.89.tar.xz
+          mv linux-6.6.89 kernel_source
 
-      - name: Install repo tool
+      - name: Configure kernel with device defconfig and correct version
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-aarch64-linux-gnu libssl-dev bc
-          mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          export PATH=~/bin:$PATH
-
-      - name: Setup Android kernel source
-        run: |
-          export PATH=~/bin:$PATH
-          mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android${{ github.event.inputs.android_version }}-${{ github.event.inputs.kernel_version }} --depth=1
-          repo sync -c -j$(nproc)
-
-      - name: Copy kernel driver into tree
-        run: |
-          mkdir -p android-kernel/common/drivers/kerneldriver
-          cp -r kerneldriver/* android-kernel/common/drivers/kerneldriver/
-          cd android-kernel/common
-          echo 'obj-y += kerneldriver/' >> drivers/Makefile
-
-      - name: Configure kernel and set correct version
-        run: |
-          cd android-kernel/common
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
-          ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
-          ./scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
+          cd kernel_source
+          cp ../device_defconfig .config
+          # 注入完全相同的 LOCALVERSION
+          scripts/config --disable CONFIG_LOCALVERSION_AUTO
+          scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
           echo "0" > .scmversion
-          touch .scmversion
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          make ARCH=arm64 olddefconfig
+          make ARCH=arm64 modules_prepare -j$(nproc)
+        continue-on-error: false
 
-      - name: Build only the driver module
+      - name: Build dream.ko
         run: |
-          cd android-kernel/common
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
-          # 强制覆写 kernel.release，防止长度超限
-          echo "6.6.89-android15-8-g5a0ffb447cd1d-ab13774115-4k" > include/config/kernel.release
-          KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
+          make -C kernel_source M=$(pwd)/code ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
         with:
-          name: dream.ko
-          path: android-kernel/common/drivers/kerneldriver/dream.ko
+          name: dream-perfect
+          path: code/dream.ko
