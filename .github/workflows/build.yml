@@ -1,4 +1,4 @@
-name: Build dream.ko (Matched & Safe)
+name: Build dream.ko (Final Fixed)
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           chmod a+x ~/bin/repo
           export PATH=~/bin:$PATH
 
-      - name: Setup Android kernel source (using repo, never miss a space)
+      - name: Setup Android kernel source
         run: |
           export PATH=~/bin:$PATH
           mkdir -p android-kernel && cd android-kernel
@@ -51,26 +51,26 @@ jobs:
           cd android-kernel/common
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
 
-      - name: Configure kernel, force version to 6.6.89-android15
+      - name: Configure kernel and set correct version
         run: |
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          # 1. 强制修改 SUBLEVEL 为 89，匹配你的内核
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 89/' Makefile
-          # 2. 设置 LOCALVERSION 精确匹配内核版本（包含 -android15 和完整 commit hash）
+          ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
           ./scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g5a0ffb447cd1d-ab13774115-4k"
-          # 3. 防止出现 -dirty 标记
           echo "0" > .scmversion
           touch .scmversion
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
-      - name: Build only the driver module (relax modpost)
+      - name: Build only the driver module
         run: |
           cd android-kernel/common
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare
+          # 强制覆写 kernel.release，防止长度超限
+          echo "6.6.89-android15-8-g5a0ffb447cd1d-ab13774115-4k" > include/config/kernel.release
           KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
 
-      - name: Upload ONLY dream.ko (no out-of-memory)
+      - name: Upload dream.ko
         uses: actions/upload-artifact@v4
         with:
           name: dream.ko
