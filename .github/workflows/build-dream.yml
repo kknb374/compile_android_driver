@@ -1,4 +1,4 @@
-name: Build dream.ko for Xiaomi13 (6.6.66) - Final
+name: Build dream.ko (fixed trace + so_hide)
 
 on:
   workflow_dispatch:
@@ -19,10 +19,15 @@ jobs:
         run: |
           git clone --depth=1 --branch android15-6.6 https://android.googlesource.com/kernel/common kernel_source
 
-      - name: Copy driver into kernel tree and inject fixed trace.h
+      - name: Copy driver and fix trace.h + so_hide.h
         run: |
           mkdir -p kernel_source/drivers/kerneldriver
           cp -r code/* kernel_source/drivers/kerneldriver/
+
+          # ---- 修正 so_hide.h：删除错误的 MODULE_LICENSE 行 ----
+          sed -i '/MODULE_LICENSE/d' kernel_source/drivers/kerneldriver/so_hide.h
+
+          # ---- 注入完全修正的 trace.h ----
           cat > kernel_source/drivers/kerneldriver/trace.h << 'TRACEEOF'
           #include <linux/module.h>
           #include <linux/kernel.h>
@@ -48,9 +53,6 @@ jobs:
 
           #include "comm.h"
 
-          /* ================================================================
-           *  版本兼容层
-           * ================================================================ */
           #ifndef LINUX_VERSION_MAJOR
           #define LINUX_VERSION_MAJOR      (LINUX_VERSION_CODE >> 16)
           #define LINUX_VERSION_PATCHLEVEL (((LINUX_VERSION_CODE) >> 8) & 0xFF)
@@ -78,9 +80,6 @@ jobs:
               return addr & GENMASK_ULL(55, 0);
           }
 
-          /* ================================================================
-           *  原子 PTE 写
-           * ================================================================ */
           static inline void raw_pte_write(pte_t *ptep, pte_t pte)
           {
               WRITE_ONCE(*ptep, pte);
@@ -88,9 +87,6 @@ jobs:
               isb();
           }
 
-          /* ================================================================
-           *  hook_entry
-           * ================================================================ */
           struct hook_entry {
               unsigned long    vaddr;
               unsigned long    target_vaddr;
@@ -113,9 +109,6 @@ jobs:
           static struct hook_entry *g_entry;
           static DEFINE_SPINLOCK(g_lock);
 
-          /* ================================================================
-           *  kallsyms 解析
-           * ================================================================ */
           typedef unsigned long (*kln_t)(const char *);
           static kln_t my_kln;
           static u64  *p_kimage_voffset;
@@ -168,9 +161,6 @@ jobs:
               }
           }
 
-          /* ================================================================
-           *  vmap 写只读页
-           * ================================================================ */
           static int write_via_vmap(void *kaddr, void *value)
           {
               u64 phys;
@@ -197,9 +187,6 @@ jobs:
               return 0;
           }
 
-          /* ================================================================
-           *  页表遍历
-           * ================================================================ */
           static pte_t *get_pte(struct mm_struct *mm, unsigned long va)
           {
               pgd_t *pgd;
@@ -219,9 +206,6 @@ jobs:
               return pte_offset_kernel(pmd, va);
           }
 
-          /* ================================================================
-           *  FPSIMD 注入
-           * ================================================================ */
           static noinline void inject_fpsimd(u32 rot0, u32 rot1, u32 rot2)
           {
               struct user_fpsimd_state *st = &current->thread.uw.fpsimd_state;
@@ -266,9 +250,6 @@ jobs:
               preempt_enable();
           }
 
-          /* ================================================================
-           *  栈注入
-           * ================================================================ */
           static void inject_stack(struct pt_regs *regs,
                                    const u32 *values, u32 count, u32 offset)
           {
@@ -285,9 +266,6 @@ jobs:
                   pr_warn_once("dream: stack inject copy_to_user failed\n");
           }
 
-          /* ================================================================
-           *  fault handler
-           * ================================================================ */
           static int handle_fault(unsigned long addr, unsigned long esr,
                                   struct pt_regs *regs)
           {
@@ -366,9 +344,6 @@ jobs:
               return 1;
           }
 
-          /* ================================================================
-           *  single-step callback (修正：使用 unsigned int esr)
-           * ================================================================ */
           static int step_cb(struct pt_regs *regs, unsigned int esr)
           {
               struct hook_entry *e;
@@ -416,9 +391,6 @@ jobs:
               .fn = step_cb,
           };
 
-          /* ================================================================
-           *  hooked fault_info 入口
-           * ================================================================ */
           static int hooked_fn(unsigned long far, unsigned long esr,
                                struct pt_regs *regs)
           {
@@ -427,9 +399,6 @@ jobs:
               return orig_fn(far, esr, regs);
           }
 
-          /* ================================================================
-           *  fault_info 索引 + 验证
-           * ================================================================ */
           static const int fidx[] = { 0x0d, 0x0e, 0x0f };
           #define N_FIDX ARRAY_SIZE(fidx)
 
@@ -445,9 +414,6 @@ jobs:
               return true;
           }
 
-          /* ================================================================
-           *  公开 API
-           * ================================================================ */
           int hook_do_attach(pid_t pid, unsigned long addr)
           {
               struct task_struct *task;
@@ -695,15 +661,9 @@ jobs:
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
 
-      - name: Build dream.ko (ignore pointer warning if any)
+      - name: Build dream.ko (ignore warnings)
         run: |
           cd kernel_source
           echo "6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k" > include/config/kernel.release
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules \
-               KBUILD_CFLAGS_MODULE="-Wno-incompatible-pointer-types -Wno-error"
-
-      - name: Upload dream.ko
-        uses: actions/upload-artifact@v4
-        with:
-          name: dream.ko
-          path: kernel_source/drivers/kerneldriver/dream.ko
+               KBUILD_CFLAGS_MODULE="-Wno-incompatible-pointer-types -Wno-error -Wno-unused-function"
