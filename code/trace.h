@@ -1,4 +1,4 @@
-// trace.h —— 修正版，兼容 android15-6.6（6.6.66 内核）
+// trace.h —— 最终修正版，花括号对齐 + unsigned int esr
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
