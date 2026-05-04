@@ -1,7 +1,8 @@
-obj-m += dream.o
+obj-m := dream.o
+KDIR ?= /lib/modules/$(shell uname -r)/build
 
 all:
-	make -C $(KERNEL_DIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
-	make -C $(KERNEL_DIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
