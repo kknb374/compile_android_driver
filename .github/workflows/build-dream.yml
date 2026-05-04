@@ -1,4 +1,4 @@
-name: Build dream.ko (Final Working)
+name: Build dream.ko for Xiaomi13 (6.6.66) - Auto Fix
 
 on:
   workflow_dispatch:
@@ -19,10 +19,14 @@ jobs:
         run: |
           git clone --depth=1 --branch android15-6.6 https://android.googlesource.com/kernel/common kernel_source
 
-      - name: Copy driver into kernel tree
+      - name: Copy driver into kernel tree and fix trace.h
         run: |
           mkdir -p kernel_source/drivers/kerneldriver
           cp -r code/* kernel_source/drivers/kerneldriver/
+
+          # ===== 自动修复 step_cb 参数类型 =====
+          sed -i 's/static int step_cb(struct pt_regs \*regs, unsigned long esr)/static int step_cb(struct pt_regs *regs, unsigned int esr)/' kernel_source/drivers/kerneldriver/trace.h
+
           cd kernel_source
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
 
