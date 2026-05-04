@@ -1,3 +1,4 @@
+// trace.h —— 修正版，兼容 Android 12 (5.10 内核)
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -341,9 +342,9 @@ static int handle_fault(unsigned long addr, unsigned long esr,
 }
 
 /* ================================================================
- *  single-step callback
+ *  single-step callback (修正版：esr 类型为 unsigned int)
  * ================================================================ */
-static int step_cb(struct pt_regs *regs, unsigned long esr)
+static int step_cb(struct pt_regs *regs, unsigned int esr)
 {
     struct hook_entry *e;
     bool handled = false;
