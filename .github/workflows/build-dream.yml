@@ -1,4 +1,4 @@
-name: Build dream.ko for Android12-5.10
+name: Build dream.ko for 6.6.66-android15
 
 on:
   workflow_dispatch:
@@ -15,9 +15,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core flex bison gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libssl-dev bc
 
-      - name: Clone kernel source (android12-5.10)
+      - name: Clone kernel source (android15-6.6)
         run: |
-          git clone --depth=1 --branch android12-5.10 https://android.googlesource.com/kernel/common kernel_source
+          git clone --depth=1 --branch android15-6.6 https://android.googlesource.com/kernel/common kernel_source
 
       - name: Copy driver into kernel tree
         run: |
@@ -29,12 +29,12 @@ jobs:
       - name: Configure kernel and force version
         run: |
           cd kernel_source
-          # 强制主版本号为 5.10.136
-          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 136/' Makefile
+          # 强制主版本号为 6.6.66
+          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 66/' Makefile
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
           scripts/config --disable CONFIG_LOCALVERSION_AUTO
           # 设置 LOCALVERSION 精确匹配你的内核
-          scripts/config --set-str CONFIG_LOCALVERSION "-android12-9-00021-g821df8f5bd36-ab9585204"
+          scripts/config --set-str CONFIG_LOCALVERSION "-android15-8-g29d86c5fc9dd-abogki428889875-4k"
           echo "0" > .scmversion
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
@@ -42,7 +42,7 @@ jobs:
       - name: Build dream.ko
         run: |
           cd kernel_source
-          echo "5.10.136-android12-9-00021-g821df8f5bd36-ab9585204" > include/config/kernel.release
+          echo "6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k" > include/config/kernel.release
           KBUILD_MODPOST_WARN=1 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
 
       - name: Upload dream.ko
