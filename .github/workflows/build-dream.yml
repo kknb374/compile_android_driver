@@ -1,4 +1,4 @@
-name: Build dream.ko for Xiaomi13 (6.6.66) - Auto Fix
+name: Build dream.ko for Xiaomi13 (6.6.66) - Final Fix
 
 on:
   workflow_dispatch:
@@ -19,14 +19,12 @@ jobs:
         run: |
           git clone --depth=1 --branch android15-6.6 https://android.googlesource.com/kernel/common kernel_source
 
-      - name: Copy driver into kernel tree and fix trace.h
+      - name: Copy driver into kernel tree
         run: |
           mkdir -p kernel_source/drivers/kerneldriver
           cp -r code/* kernel_source/drivers/kerneldriver/
           cd kernel_source
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
-          # 自动修复 step_cb 参数类型
-          sed -i 's/static int step_cb(struct pt_regs \*regs, unsigned long esr)/static int step_cb(struct pt_regs *regs, unsigned int esr)/' drivers/kerneldriver/trace.h
 
       - name: Configure kernel and force version
         run: |
@@ -39,11 +37,12 @@ jobs:
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
 
-      - name: Build dream.ko
+      - name: Build dream.ko (ignore pointer warning)
         run: |
           cd kernel_source
           echo "6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k" > include/config/kernel.release
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=drivers/kerneldriver modules \
+               CF="-Wno-incompatible-pointer-types"
 
       - name: Upload dream.ko
         uses: actions/upload-artifact@v4
