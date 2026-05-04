@@ -1,3 +1,4 @@
+// trace.h —— 修正版，兼容 android15-6.6（6.6.66 内核）
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -20,7 +21,7 @@
 #include <asm/esr.h>
 #include <asm/debug-monitors.h>
 
-#include "comm.h"          /* ← 唯一变化：原来是 hook.h */
+#include "comm.h"
 
 /* ================================================================
  *  版本兼容层
@@ -341,9 +342,9 @@ static int handle_fault(unsigned long addr, unsigned long esr,
 }
 
 /* ================================================================
- *  single-step callback
+ *  single-step callback (修正：使用 unsigned int esr)
  * ================================================================ */
-static int step_cb(struct pt_regs *regs, unsigned long esr)
+static int step_cb(struct pt_regs *regs, unsigned int esr)
 {
     struct hook_entry *e;
     bool handled = false;
