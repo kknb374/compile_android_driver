@@ -23,12 +23,10 @@ jobs:
         run: |
           mkdir -p kernel_source/drivers/kerneldriver
           cp -r code/* kernel_source/drivers/kerneldriver/
-
-          # ===== 自动修复 step_cb 参数类型 =====
-          sed -i 's/static int step_cb(struct pt_regs \*regs, unsigned long esr)/static int step_cb(struct pt_regs *regs, unsigned int esr)/' kernel_source/drivers/kerneldriver/trace.h
-
           cd kernel_source
           echo 'obj-y += kerneldriver/' >> drivers/Makefile
+          # 自动修复 step_cb 参数类型
+          sed -i 's/static int step_cb(struct pt_regs \*regs, unsigned long esr)/static int step_cb(struct pt_regs *regs, unsigned int esr)/' drivers/kerneldriver/trace.h
 
       - name: Configure kernel and force version
         run: |
